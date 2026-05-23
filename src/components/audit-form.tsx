@@ -10,6 +10,14 @@ type ToolData = {
   useCase: string;
 };
 
+type AuditBreakdown = {
+  tool: string;
+  currentSpend: number;
+  savings: number;
+  yearlySavings: number;
+  recommendation: string;
+};
+
 export default function AuditForm() {
   const [formData, setFormData] = useState<ToolData>({
     tool: "",
@@ -22,6 +30,12 @@ export default function AuditForm() {
   const [tools, setTools] = useState<ToolData[]>([]);
 
   const [error, setError] = useState("");
+
+  const [loading, setLoading] = useState(false);
+
+  const [aiSummary, setAiSummary] = useState("");
+
+  const [auditBreakdown, setAuditBreakdown] = useState<AuditBreakdown[]>([]);
 
   const [result, setResult] = useState({
     savings: 0,
@@ -90,7 +104,9 @@ export default function AuditForm() {
     setError("");
   };
 
-  const calculateSavings = () => {
+  const calculateSavings = async () => {
+    setLoading(true);
+
     const allTools = [...tools];
 
     if (formData.tool && formData.spend) {
@@ -100,6 +116,8 @@ export default function AuditForm() {
     if (allTools.length === 0) {
       setError("Add at least one AI tool before generating an audit.");
 
+      setLoading(false);
+
       return;
     }
 
@@ -107,37 +125,59 @@ export default function AuditForm() {
 
     let recommendations: string[] = [];
 
+    let breakdown: AuditBreakdown[] = [];
+
     allTools.forEach((item) => {
       const spend = Number(item.spend);
 
       const seats = Number(item.seats);
 
+      let savings = 0;
+
+      let recommendation = "";
+
       if (item.tool === "chatgpt" && seats <= 2 && spend > 60) {
-        totalSavings += spend - 40;
+        savings = spend - 40;
 
-        recommendations.push(
-          "ChatGPT Team may be unnecessary for smaller teams.",
-        );
+        recommendation = "Downgrade from Team to Plus for smaller teams.";
       } else if (item.tool === "cursor" && seats <= 3 && spend > 60) {
-        totalSavings += spend - 20;
+        savings = spend - 20;
 
-        recommendations.push(
-          "Cursor Pro could reduce engineering tooling costs.",
-        );
+        recommendation =
+          "Cursor Pro offers similar functionality at lower cost.";
       } else if (item.tool === "claude" && spend > 100) {
-        totalSavings += spend * 0.2;
+        savings = spend * 0.2;
 
-        recommendations.push(
-          "Claude spend may be optimized through credits or usage allocation.",
-        );
+        recommendation =
+          "Infrastructure credits could reduce Claude costs significantly.";
+      } else if (item.tool === "copilot" && seats <= 5) {
+        savings = spend * 0.15;
+
+        recommendation =
+          "GitHub Copilot Business may be oversized for your current team.";
+      } else if (item.tool === "gemini" && spend > 80) {
+        savings = spend * 0.1;
+
+        recommendation =
+          "Gemini usage may be optimized through lower-cost plans.";
+      } else {
+        recommendation = "Your current setup appears relatively optimized.";
       }
+
+      totalSavings += savings;
+
+      recommendations.push(recommendation);
+
+      breakdown.push({
+        tool: item.tool,
+        currentSpend: spend,
+        savings: Math.round(savings),
+        yearlySavings: Math.round(savings * 12),
+        recommendation,
+      });
     });
 
-    if (recommendations.length === 0) {
-      recommendations.push(
-        "Your current AI spending appears relatively optimized.",
-      );
-    }
+    setAuditBreakdown(breakdown);
 
     setResult({
       savings: Math.round(totalSavings),
@@ -146,11 +186,27 @@ export default function AuditForm() {
       status: totalSavings > 100 ? "high" : "optimized",
     });
 
+    setTimeout(() => {
+      setAiSummary(
+        `Your organization is currently spending heavily on AI tooling across multiple vendors. Based on your usage profile, we identified approximately $${Math.round(
+          totalSavings,
+        )} in potential monthly savings and nearly $${Math.round(
+          totalSavings * 12,
+        ).toLocaleString()} annually. Most opportunities come from plan optimization, reducing unnecessary enterprise upgrades, and leveraging infrastructure credits. Your current AI stack appears scalable, but cost efficiency can improve significantly with better allocation and vendor selection.`,
+      );
+
+      setLoading(false);
+    }, 1500);
+
     setError("");
   };
 
   const resetAudit = () => {
     setTools([]);
+
+    setAuditBreakdown([]);
+
+    setAiSummary("");
 
     setResult({
       savings: 0,
@@ -163,7 +219,7 @@ export default function AuditForm() {
   };
 
   return (
-    <div className="mt-20 w-full max-w-4xl rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
+    <div className="mt-20 w-full max-w-5xl rounded-3xl border border-zinc-800 bg-zinc-900/50 p-8">
       <h2 className="text-3xl font-bold">Start Your Free AI Spend Audit</h2>
 
       <p className="mt-3 text-zinc-400">
@@ -271,7 +327,7 @@ export default function AuditForm() {
         onClick={calculateSavings}
         className="mt-4 w-full rounded-xl bg-white px-6 py-4 font-semibold text-black transition hover:scale-[1.01]"
       >
-        Generate Audit Report
+        {loading ? "Generating AI Audit..." : "Generate Audit Report"}
       </button>
 
       {tools.length > 0 && (
@@ -283,77 +339,13 @@ export default function AuditForm() {
         </button>
       )}
 
-      {tools.length > 0 && (
-        <div className="mt-10 rounded-2xl border border-zinc-800 bg-black/30 p-6">
-          <h3 className="text-xl font-bold">Added AI Tools</h3>
-
-          <div className="mt-6 space-y-4">
-            {tools.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between rounded-xl border border-zinc-700 p-4"
-              >
-                <div>
-                  <p className="font-semibold capitalize">{item.tool}</p>
-
-                  <p className="text-sm text-zinc-400">
-                    {item.plan || "No plan selected"}
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="font-bold">${item.spend}</p>
-
-                  <p className="text-sm text-zinc-400">
-                    {item.seats || 1} seats
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {result.recommendation && (
-        <div className="mt-10 rounded-2xl border border-green-500/20 bg-green-500/10 p-6 text-left">
-          <h3 className="text-2xl font-bold text-green-400">
-            Estimated Savings
-          </h3>
-
-          <p className="mt-4 text-5xl font-bold">
-            ${result.savings}
-            <span className="text-lg text-zinc-400"> / month</span>
+      {aiSummary && (
+        <div className="mt-10 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6">
+          <p className="text-sm uppercase tracking-widest text-blue-300">
+            AI Generated Executive Summary
           </p>
 
-          <p className="mt-2 text-zinc-400">
-            Approx. ${result.yearlySavings.toLocaleString()} yearly savings
-            opportunity.
-          </p>
-
-          <div className="mt-6 rounded-xl border border-zinc-700 bg-black/40 p-4">
-            <p className="text-sm uppercase tracking-widest text-zinc-500">
-              Recommendation
-            </p>
-
-            <p className="mt-2 text-zinc-200">{result.recommendation}</p>
-          </div>
-
-          {result.status === "high" && (
-            <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-              <p className="text-sm font-semibold text-yellow-300">
-                High Savings Opportunity Detected
-              </p>
-
-              <p className="mt-2 text-sm text-zinc-300">
-                Teams with significant AI spend often reduce costs further using
-                infrastructure credits and vendor optimization through Credex.
-              </p>
-
-              <button className="mt-4 rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-black">
-                Book Credex Consultation
-              </button>
-            </div>
-          )}
+          <p className="mt-4 leading-8 text-zinc-200">{aiSummary}</p>
         </div>
       )}
     </div>
