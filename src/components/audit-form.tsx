@@ -11,6 +11,11 @@ export default function AuditForm() {
     useCase: "",
   });
 
+  const [result, setResult] = useState({
+    savings: 0,
+    recommendation: "",
+  });
+
   useEffect(() => {
     const saved = localStorage.getItem("audit-form");
 
@@ -41,25 +46,27 @@ export default function AuditForm() {
 
     if (formData.tool === "chatgpt" && seats <= 2 && spend > 60) {
       savings = spend - 40;
+
       recommendation =
         "You may be overspending on ChatGPT Team. ChatGPT Plus may fit your team better.";
-    }
-
-    if (formData.tool === "cursor" && seats <= 3 && spend > 60) {
+    } else if (formData.tool === "cursor" && seats <= 3 && spend > 60) {
       savings = spend - 20;
+
       recommendation =
         "Cursor Pro may provide similar functionality at lower cost.";
-    }
-
-    if (formData.tool === "claude" && spend > 100) {
+    } else if (formData.tool === "claude" && spend > 100) {
       savings = spend * 0.2;
+
       recommendation =
-        "You may reduce costs through optimized Claude usage or credits.";
+        "You may reduce costs through optimized Claude usage or infrastructure credits.";
+    } else {
+      recommendation = "Your current AI spending appears relatively optimized.";
     }
 
-    alert(
-      `Estimated Monthly Savings: $${Math.round(savings)}\n\n${recommendation}`,
-    );
+    setResult({
+      savings: Math.round(savings),
+      recommendation,
+    });
   };
 
   return (
@@ -160,6 +167,32 @@ export default function AuditForm() {
       >
         Generate Audit Report
       </button>
+
+      {result.recommendation && (
+        <div className="mt-10 rounded-2xl border border-green-500/20 bg-green-500/10 p-6 text-left">
+          <h3 className="text-2xl font-bold text-green-400">
+            Estimated Savings
+          </h3>
+
+          <p className="mt-4 text-5xl font-bold">
+            ${result.savings}
+            <span className="text-lg text-zinc-400"> / month</span>
+          </p>
+
+          <p className="mt-2 text-zinc-400">
+            Approx. ${(result.savings * 12).toLocaleString()} yearly savings
+            opportunity.
+          </p>
+
+          <div className="mt-6 rounded-xl border border-zinc-700 bg-black/40 p-4">
+            <p className="text-sm uppercase tracking-widest text-zinc-500">
+              Recommendation
+            </p>
+
+            <p className="mt-2 text-zinc-200">{result.recommendation}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
