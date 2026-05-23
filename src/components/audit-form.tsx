@@ -2,14 +2,24 @@
 
 import { useEffect, useState } from "react";
 
+type ToolData = {
+  tool: string;
+  plan: string;
+  spend: string;
+  seats: string;
+  useCase: string;
+};
+
 export default function AuditForm() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ToolData>({
     tool: "",
     plan: "",
     spend: "",
     seats: "",
     useCase: "",
   });
+
+  const [tools, setTools] = useState<ToolData[]>([]);
 
   const [result, setResult] = useState({
     savings: 0,
@@ -19,16 +29,25 @@ export default function AuditForm() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("audit-form");
+    const savedForm = localStorage.getItem("audit-form");
+    const savedTools = localStorage.getItem("audit-tools");
 
-    if (saved) {
-      setFormData(JSON.parse(saved));
+    if (savedForm) {
+      setFormData(JSON.parse(savedForm));
+    }
+
+    if (savedTools) {
+      setTools(JSON.parse(savedTools));
     }
   }, []);
 
   useEffect(() => {
     localStorage.setItem("audit-form", JSON.stringify(formData));
   }, [formData]);
+
+  useEffect(() => {
+    localStorage.setItem("audit-tools", JSON.stringify(tools));
+  }, [tools]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -39,37 +58,66 @@ export default function AuditForm() {
     });
   };
 
+  const addTool = () => {
+    if (!formData.tool || !formData.spend) return;
+
+    setTools([...tools, formData]);
+
+    setFormData({
+      tool: "",
+      plan: "",
+      spend: "",
+      seats: "",
+      useCase: "",
+    });
+  };
+
   const calculateSavings = () => {
-    const spend = Number(formData.spend);
-    const seats = Number(formData.seats);
+    const allTools = [...tools];
 
-    let savings = 0;
-    let recommendation = "";
+    if (formData.tool) {
+      allTools.push(formData);
+    }
 
-    if (formData.tool === "chatgpt" && seats <= 2 && spend > 60) {
-      savings = spend - 40;
+    let totalSavings = 0;
+    let recommendations: string[] = [];
 
-      recommendation =
-        "You may be overspending on ChatGPT Team. ChatGPT Plus may fit your team better.";
-    } else if (formData.tool === "cursor" && seats <= 3 && spend > 60) {
-      savings = spend - 20;
+    allTools.forEach((item) => {
+      const spend = Number(item.spend);
+      const seats = Number(item.seats);
 
-      recommendation =
-        "Cursor Pro may provide similar functionality at lower cost.";
-    } else if (formData.tool === "claude" && spend > 100) {
-      savings = spend * 0.2;
+      if (item.tool === "chatgpt" && seats <= 2 && spend > 60) {
+        totalSavings += spend - 40;
 
-      recommendation =
-        "You may reduce costs through optimized Claude usage or infrastructure credits.";
-    } else {
-      recommendation = "Your current AI spending appears relatively optimized.";
+        recommendations.push(
+          "ChatGPT Team may be unnecessary for smaller teams.",
+        );
+      } else if (item.tool === "cursor" && seats <= 3 && spend > 60) {
+        totalSavings += spend - 20;
+
+        recommendations.push(
+          "Cursor Pro could reduce engineering tooling costs.",
+        );
+      } else if (item.tool === "claude" && spend > 100) {
+        totalSavings += spend * 0.2;
+
+        recommendations.push(
+          "Claude spend may be optimized through credits or usage allocation.",
+        );
+      }
+    });
+
+    if (recommendations.length === 0) {
+      recommendations.push(
+        "Your current AI spending appears relatively optimized.",
+      );
     }
 
     setResult({
-      savings: Math.round(savings),
-      yearlySavings: Math.round(savings * 12),
-      recommendation,
-      status: savings > 100 ? "high" : "optimized",
+      savings: Math.round(totalSavings),
+      yearlySavings: Math.round(totalSavings * 12),
+      recommendation: recommendations.join(" "),
+      status: totalSavings > 100 ? "high" : "optimized",
     });
   };
 
@@ -166,11 +214,49 @@ export default function AuditForm() {
       </div>
 
       <button
+        onClick={addTool}
+        className="mt-8 w-full rounded-xl border border-zinc-700 px-6 py-4 font-semibold transition hover:bg-zinc-800"
+      >
+        Add Another Tool
+      </button>
+
+      <button
         onClick={calculateSavings}
-        className="mt-10 w-full rounded-xl bg-white px-6 py-4 font-semibold text-black transition hover:scale-[1.01]"
+        className="mt-4 w-full rounded-xl bg-white px-6 py-4 font-semibold text-black transition hover:scale-[1.01]"
       >
         Generate Audit Report
       </button>
+
+      {tools.length > 0 && (
+        <div className="mt-10 rounded-2xl border border-zinc-800 bg-black/30 p-6">
+          <h3 className="text-xl font-bold">Added AI Tools</h3>
+
+          <div className="mt-6 space-y-4">
+            {tools.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between rounded-xl border border-zinc-700 p-4"
+              >
+                <div>
+                  <p className="font-semibold capitalize">{item.tool}</p>
+
+                  <p className="text-sm text-zinc-400">
+                    {item.plan || "No plan selected"}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="font-bold">${item.spend}</p>
+
+                  <p className="text-sm text-zinc-400">
+                    {item.seats || 1} seats
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {result.recommendation && (
         <div className="mt-10 rounded-2xl border border-green-500/20 bg-green-500/10 p-6 text-left">
@@ -195,22 +281,23 @@ export default function AuditForm() {
 
             <p className="mt-2 text-zinc-200">{result.recommendation}</p>
           </div>
-        </div>
-      )}
-      {result.status === "high" && (
-        <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-          <p className="text-sm font-semibold text-yellow-300">
-            High Savings Opportunity Detected
-          </p>
 
-          <p className="mt-2 text-sm text-zinc-300">
-            Teams with significant AI spend often reduce costs further using
-            infrastructure credits and vendor optimization through Credex.
-          </p>
+          {result.status === "high" && (
+            <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
+              <p className="text-sm font-semibold text-yellow-300">
+                High Savings Opportunity Detected
+              </p>
 
-          <button className="mt-4 rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-black">
-            Book Credex Consultation
-          </button>
+              <p className="mt-2 text-sm text-zinc-300">
+                Teams with significant AI spend often reduce costs further using
+                infrastructure credits and vendor optimization through Credex.
+              </p>
+
+              <button className="mt-4 rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-black">
+                Book Credex Consultation
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
