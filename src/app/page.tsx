@@ -1,8 +1,10 @@
+import AuditForm from "@/components/audit-form";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white">
-      <section className="flex min-h-screen flex-col items-center justify-center px-6">
-        <div className="max-w-4xl text-center">
+      <section className="flex min-h-screen flex-col items-center justify-center px-6 py-20">
+        <div className="max-w-5xl text-center">
           <p className="mb-4 text-sm uppercase tracking-[0.3em] text-zinc-500">
             Credex AI Spend Audit
           </p>
@@ -31,6 +33,7 @@ export default function Home() {
           <div className="mt-16 grid gap-6 md:grid-cols-3">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
               <h3 className="text-3xl font-bold">$12k+</h3>
+
               <p className="mt-2 text-zinc-400">
                 Average yearly savings discovered
               </p>
@@ -38,6 +41,7 @@ export default function Home() {
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
               <h3 className="text-3xl font-bold">2 Minutes</h3>
+
               <p className="mt-2 text-zinc-400">
                 To complete a full AI spend audit
               </p>
@@ -45,11 +49,14 @@ export default function Home() {
 
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6">
               <h3 className="text-3xl font-bold">100%</h3>
+
               <p className="mt-2 text-zinc-400">
                 Free with actionable recommendations
               </p>
             </div>
           </div>
+
+          <AuditForm />
         </div>
       </section>
     </main>
