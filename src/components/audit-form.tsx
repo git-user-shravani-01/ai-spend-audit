@@ -13,7 +13,9 @@ export default function AuditForm() {
 
   const [result, setResult] = useState({
     savings: 0,
+    yearlySavings: 0,
     recommendation: "",
+    status: "",
   });
 
   useEffect(() => {
@@ -65,7 +67,9 @@ export default function AuditForm() {
 
     setResult({
       savings: Math.round(savings),
+      yearlySavings: Math.round(savings * 12),
       recommendation,
+      status: savings > 100 ? "high" : "optimized",
     });
   };
 
@@ -180,7 +184,7 @@ export default function AuditForm() {
           </p>
 
           <p className="mt-2 text-zinc-400">
-            Approx. ${(result.savings * 12).toLocaleString()} yearly savings
+            Approx. ${result.yearlySavings.toLocaleString()} yearly savings
             opportunity.
           </p>
 
@@ -191,6 +195,22 @@ export default function AuditForm() {
 
             <p className="mt-2 text-zinc-200">{result.recommendation}</p>
           </div>
+        </div>
+      )}
+      {result.status === "high" && (
+        <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
+          <p className="text-sm font-semibold text-yellow-300">
+            High Savings Opportunity Detected
+          </p>
+
+          <p className="mt-2 text-sm text-zinc-300">
+            Teams with significant AI spend often reduce costs further using
+            infrastructure credits and vendor optimization through Credex.
+          </p>
+
+          <button className="mt-4 rounded-lg bg-yellow-400 px-4 py-2 text-sm font-semibold text-black">
+            Book Credex Consultation
+          </button>
         </div>
       )}
     </div>
