@@ -21,6 +21,8 @@ export default function AuditForm() {
 
   const [tools, setTools] = useState<ToolData[]>([]);
 
+  const [error, setError] = useState("");
+
   const [result, setResult] = useState({
     savings: 0,
     yearlySavings: 0,
@@ -56,10 +58,24 @@ export default function AuditForm() {
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    setError("");
   };
 
   const addTool = () => {
-    if (!formData.tool || !formData.spend) return;
+    if (!formData.tool || !formData.spend) {
+      setError("Please select a tool and monthly spend.");
+
+      return;
+    }
+
+    const duplicate = tools.find((item) => item.tool === formData.tool);
+
+    if (duplicate) {
+      setError("This tool has already been added.");
+
+      return;
+    }
 
     setTools([...tools, formData]);
 
@@ -70,20 +86,30 @@ export default function AuditForm() {
       seats: "",
       useCase: "",
     });
+
+    setError("");
   };
 
   const calculateSavings = () => {
     const allTools = [...tools];
 
-    if (formData.tool) {
+    if (formData.tool && formData.spend) {
       allTools.push(formData);
     }
 
+    if (allTools.length === 0) {
+      setError("Add at least one AI tool before generating an audit.");
+
+      return;
+    }
+
     let totalSavings = 0;
+
     let recommendations: string[] = [];
 
     allTools.forEach((item) => {
       const spend = Number(item.spend);
+
       const seats = Number(item.seats);
 
       if (item.tool === "chatgpt" && seats <= 2 && spend > 60) {
@@ -119,6 +145,21 @@ export default function AuditForm() {
       recommendation: recommendations.join(" "),
       status: totalSavings > 100 ? "high" : "optimized",
     });
+
+    setError("");
+  };
+
+  const resetAudit = () => {
+    setTools([]);
+
+    setResult({
+      savings: 0,
+      yearlySavings: 0,
+      recommendation: "",
+      status: "",
+    });
+
+    localStorage.removeItem("audit-tools");
   };
 
   return (
@@ -128,6 +169,12 @@ export default function AuditForm() {
       <p className="mt-3 text-zinc-400">
         Analyze your AI tooling costs and uncover hidden savings.
       </p>
+
+      {error && (
+        <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="mt-10 grid gap-6 md:grid-cols-2">
         <div>
@@ -226,6 +273,15 @@ export default function AuditForm() {
       >
         Generate Audit Report
       </button>
+
+      {tools.length > 0 && (
+        <button
+          onClick={resetAudit}
+          className="mt-4 w-full rounded-xl border border-red-500/20 bg-red-500/10 px-6 py-4 font-semibold text-red-300 transition hover:bg-red-500/20"
+        >
+          Reset Audit
+        </button>
+      )}
 
       {tools.length > 0 && (
         <div className="mt-10 rounded-2xl border border-zinc-800 bg-black/30 p-6">
