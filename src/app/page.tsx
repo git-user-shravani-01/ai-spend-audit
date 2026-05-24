@@ -1,5 +1,5 @@
 import AuditForm from "@/components/audit-form";
-
+import Navbar from "@/components/navbar";
 export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white">
@@ -55,7 +55,17 @@ export default function Home() {
               </p>
             </div>
           </div>
+          <section className="mx-auto mt-24 max-w-5xl text-center">
+            <h1 className="text-6xl font-black leading-tight">
+              Cut Your AI Costs
+              <span className="text-green-400"> Instantly</span>
+            </h1>
 
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-zinc-400">
+              Analyze ChatGPT, Claude, Gemini, Copilot and Cursor spending with
+              intelligent AI-powered recommendations.
+            </p>
+          </section>
           <AuditForm />
         </div>
       </section>

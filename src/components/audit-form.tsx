@@ -1,6 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type ToolData = {
   tool: string;
@@ -18,6 +31,8 @@ type AuditBreakdown = {
   recommendation: string;
 };
 
+const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7"];
+
 export default function AuditForm() {
   const [formData, setFormData] = useState<ToolData>({
     tool: "",
@@ -28,6 +43,7 @@ export default function AuditForm() {
   });
 
   const [tools, setTools] = useState<ToolData[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
 
   const [error, setError] = useState("");
 
@@ -55,6 +71,8 @@ export default function AuditForm() {
     if (savedTools) {
       setTools(JSON.parse(savedTools));
     }
+
+    fetchAuditHistory();
   }, []);
 
   useEffect(() => {
@@ -64,6 +82,17 @@ export default function AuditForm() {
   useEffect(() => {
     localStorage.setItem("audit-tools", JSON.stringify(tools));
   }, [tools]);
+
+  const fetchAuditHistory = async () => {
+    const { data, error } = await supabase
+      .from("audit_reports")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (!error && data) {
+      setHistory(data);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -79,7 +108,6 @@ export default function AuditForm() {
   const addTool = () => {
     if (!formData.tool || !formData.spend) {
       setError("Please select a tool and monthly spend.");
-
       return;
     }
 
@@ -87,7 +115,6 @@ export default function AuditForm() {
 
     if (duplicate) {
       setError("This tool has already been added.");
-
       return;
     }
 
@@ -115,9 +142,7 @@ export default function AuditForm() {
 
     if (allTools.length === 0) {
       setError("Add at least one AI tool before generating an audit.");
-
       setLoading(false);
-
       return;
     }
 
@@ -187,6 +212,22 @@ export default function AuditForm() {
     });
 
     try {
+      const { error } = await supabase.from("audit_reports").insert(
+        allTools.map((item) => ({
+          tool: item.tool,
+          plan: item.plan,
+          spend: Number(item.spend),
+          seats: Number(item.seats),
+          use_case: item.useCase,
+        })),
+      );
+
+      if (error) {
+        console.log(error);
+      }
+
+      await fetchAuditHistory();
+
       const response = await fetch("/api/generate-summary", {
         method: "POST",
 
@@ -352,6 +393,88 @@ export default function AuditForm() {
         </button>
       )}
 
+      {auditBreakdown.length > 0 && (
+        <div className="mt-10 grid gap-8 md:grid-cols-2">
+          <div className="rounded-2xl border border-zinc-800 bg-black/30 p-6">
+            <h3 className="mb-6 text-2xl font-bold">Spend Distribution</h3>
+
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={auditBreakdown}
+                    dataKey="currentSpend"
+                    nameKey="tool"
+                    outerRadius={100}
+                    label
+                  >
+                    {auditBreakdown.map((entry, index) => (
+                      <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-800 bg-black/30 p-6">
+            <h3 className="mb-6 text-2xl font-bold">Savings Comparison</h3>
+
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={auditBreakdown}>
+                  <XAxis dataKey="tool" stroke="#a1a1aa" />
+
+                  <YAxis stroke="#a1a1aa" />
+
+                  <Tooltip />
+
+                  <Bar dataKey="savings" fill="#22c55e" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <div className="mt-10 rounded-2xl border border-zinc-800 bg-black/30 p-6">
+          <h3 className="text-2xl font-bold">Recent Audit History</h3>
+
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-zinc-700 text-zinc-400">
+                  <th className="pb-4">Tool</th>
+                  <th className="pb-4">Plan</th>
+                  <th className="pb-4">Spend</th>
+                  <th className="pb-4">Seats</th>
+                  <th className="pb-4">Use Case</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {history.map((item, index) => (
+                  <tr key={index} className="border-b border-zinc-800">
+                    <td className="py-4 capitalize">{item.tool}</td>
+
+                    <td>{item.plan}</td>
+
+                    <td>${item.spend}</td>
+
+                    <td>{item.seats}</td>
+
+                    <td className="capitalize">{item.use_case}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {aiSummary && (
         <div className="mt-10 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-6">
           <p className="text-sm uppercase tracking-widest text-blue-300">
@@ -359,6 +482,24 @@ export default function AuditForm() {
           </p>
 
           <p className="mt-4 leading-8 text-zinc-200">{aiSummary}</p>
+        </div>
+      )}
+
+      {result.recommendation && (
+        <div className="mt-10 rounded-2xl border border-green-500/20 bg-green-500/10 p-6">
+          <h3 className="text-3xl font-bold text-green-400">
+            Total Estimated Savings
+          </h3>
+
+          <p className="mt-4 text-5xl font-bold">
+            ${result.savings}
+            <span className="text-lg text-zinc-400"> / month</span>
+          </p>
+
+          <p className="mt-2 text-zinc-300">
+            Approx. ${result.yearlySavings.toLocaleString()} yearly savings
+            opportunity.
+          </p>
         </div>
       )}
     </div>
