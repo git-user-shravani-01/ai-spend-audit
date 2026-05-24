@@ -186,17 +186,30 @@ export default function AuditForm() {
       status: totalSavings > 100 ? "high" : "optimized",
     });
 
-    setTimeout(() => {
-      setAiSummary(
-        `Your organization is currently spending heavily on AI tooling across multiple vendors. Based on your usage profile, we identified approximately $${Math.round(
-          totalSavings,
-        )} in potential monthly savings and nearly $${Math.round(
-          totalSavings * 12,
-        ).toLocaleString()} annually. Most opportunities come from plan optimization, reducing unnecessary enterprise upgrades, and leveraging infrastructure credits. Your current AI stack appears scalable, but cost efficiency can improve significantly with better allocation and vendor selection.`,
-      );
+    try {
+      const response = await fetch("/api/generate-summary", {
+        method: "POST",
 
-      setLoading(false);
-    }, 1500);
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          tools: allTools,
+          savings: totalSavings,
+        }),
+      });
+
+      const data = await response.json();
+
+      setAiSummary(data.summary);
+    } catch (error) {
+      setAiSummary(
+        "Your AI stack may contain optimization opportunities through smarter plan allocation and infrastructure credit usage.",
+      );
+    }
+
+    setLoading(false);
 
     setError("");
   };
