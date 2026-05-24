@@ -31,6 +31,15 @@ type AuditBreakdown = {
   recommendation: string;
 };
 
+type HistoryItem = {
+  id: number;
+  tool: string;
+  plan: string;
+  spend: number;
+  seats: number;
+  use_case: string;
+};
+
 const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#a855f7"];
 
 export default function AuditForm() {
@@ -43,12 +52,10 @@ export default function AuditForm() {
   });
 
   const [tools, setTools] = useState<ToolData[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const [error, setError] = useState("");
-
   const [loading, setLoading] = useState(false);
-
   const [aiSummary, setAiSummary] = useState("");
 
   const [auditBreakdown, setAuditBreakdown] = useState<AuditBreakdown[]>([]);
@@ -84,13 +91,15 @@ export default function AuditForm() {
   }, [tools]);
 
   const fetchAuditHistory = async () => {
+    if (!supabase) return;
+
     const { data, error } = await supabase
       .from("audit_reports")
       .select("*")
       .order("id", { ascending: false });
 
     if (!error && data) {
-      setHistory(data);
+      setHistory(data as HistoryItem[]);
     }
   };
 
@@ -154,11 +163,9 @@ export default function AuditForm() {
 
     allTools.forEach((item) => {
       const spend = Number(item.spend);
-
       const seats = Number(item.seats);
 
       let savings = 0;
-
       let recommendation = "";
 
       if (item.tool === "chatgpt" && seats <= 2 && spend > 60) {
@@ -212,21 +219,23 @@ export default function AuditForm() {
     });
 
     try {
-      const { error } = await supabase.from("audit_reports").insert(
-        allTools.map((item) => ({
-          tool: item.tool,
-          plan: item.plan,
-          spend: Number(item.spend),
-          seats: Number(item.seats),
-          use_case: item.useCase,
-        })),
-      );
+      if (supabase) {
+        const { error } = await supabase.from("audit_reports").insert(
+          allTools.map((item) => ({
+            tool: item.tool,
+            plan: item.plan,
+            spend: Number(item.spend),
+            seats: Number(item.seats),
+            use_case: item.useCase,
+          })),
+        );
 
-      if (error) {
-        console.log(error);
+        if (error) {
+          console.log(error);
+        }
+
+        await fetchAuditHistory();
       }
-
-      await fetchAuditHistory();
 
       const response = await fetch("/api/generate-summary", {
         method: "POST",
@@ -456,8 +465,8 @@ export default function AuditForm() {
               </thead>
 
               <tbody>
-                {history.map((item, index) => (
-                  <tr key={index} className="border-b border-zinc-800">
+                {history.map((item) => (
+                  <tr key={item.id} className="border-b border-zinc-800">
                     <td className="py-4 capitalize">{item.tool}</td>
 
                     <td>{item.plan}</td>
